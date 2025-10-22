@@ -1,8 +1,16 @@
-#prompt {
+#chat_input {
     border: round #E5E9F0;
     min-height: 5;
-    width: 80%;
 }
+
+#chat_input Input {
+    width: 1fr;
+}
+
+#choose_file {
+    min-width: 14;
+}
+
 
 .log {
     border: round #81A1C1;

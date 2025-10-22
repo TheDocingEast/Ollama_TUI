@@ -1,4 +1,8 @@
-from textual import on
+import PIL
+import os
+import ollama
+from datetime import datetime
+from textual import on, work
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll, Container
 from textual.widgets import (
@@ -21,10 +25,9 @@ from textual.widgets import (
 from textual_image.widget import Image
 from textual.theme import Theme
 from textual_fspicker import FileOpen
-import ollama
-import os
 
 # import core
+
 
 
 
@@ -42,6 +45,17 @@ nord_dark_theme = Theme(
     panel="#434C5E",       # Polar Night (lighter)
     dark=True,
 )
+
+def current_time():
+    return datetime.now().strftime("%H:%M:%S")
+
+def is_image(path: str) -> bool:
+    try:
+        with PIL.Image.open(path) as img:
+            img.verify()  # Проверяет целостность
+        return True
+    except Exception:
+        return False
 
 class Message(Static):
     def compose(self) -> ComposeResult:
@@ -69,7 +83,7 @@ class AIChat(App):
     )
 
     def on_ready(self) -> None:
-        self.log_window.write_line("Hello, World!")
+        self.log_window.write_line(f"{current_time()}: Hello, World!")
 
 
     def on_mount(self) -> None:
@@ -95,17 +109,16 @@ class AIChat(App):
                     with Vertical():
                         with VerticalScroll(classes="chat", id='chat_window'):
                             yield self.chat
-                        with Horizontal():
+                        with Horizontal(id='chat_input'):
                             yield Input(
                                 placeholder="Write prompt",
                                 id='prompt'
                             )
-                            with Container():
-                                yield Button(
-                                    label="Choose file",
-                                    variant="default",
-                                    id='choose_file',
-                                )
+                            yield Button(
+                                label="Choose file",
+                                variant="default",
+                                id='choose_file',
+                            )
 
             with TabPane("Settings", id='setting_tab'):
                 with VerticalScroll(classes='vert'):
@@ -140,10 +153,19 @@ class AIChat(App):
                         id='reset_log'
                     )
 
-
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
+    @work
+    @on(Button.Pressed)
+    async def button_action(self, event: Button.Pressed) -> None:
         if event.button.id == 'choose_file':
-            await self.push_screen(FileOpen())
+            if opened := await self.push_screen_wait(FileOpen()):
+                if is_image(str(opened)):
+                    self.log_window.write_line(f"{current_time()}: Open image in {str(opened)}")
+                    chat_input = self.get_widget_by_id("chat_input")
+                    img = Image(image=str(opened), classes="avatar")
+                    await chat_input.mount(img, after="#choose_file")
+                else:
+                    self.log_window.write_line(f"{current_time()}: File {str(opened)} not image")
+
         if event.button.id == 'reset_log':
             self.log_window.clear()
 
@@ -155,11 +177,14 @@ class AIChat(App):
             model_name = event.pressed.label if event.pressed else "Unknown"
             ai_avatar = f"img/avatar_{ava_id}.png"
             if os.path.exists(ai_avatar):
-                self.log_window.write_line(f"AI avatar changed to {model_name} (id {ava_id})")
-                chat_win = self.get_widget_by_id('chat_window')
-                chat_win.mount(Image(image=ai_avatar,classes='avatar'))
+                self.log_window.write_line(
+                    f"{current_time()}: AI avatar changed to {model_name} (id {ava_id})"
+                )
+                chat_win = self.get_widget_by_id('chat_log')
+                img = Image(image=ai_avatar, classes='avatar')
+                chat_win.mount(img)
             else:
-                self.log_window.write_line(f"Avatar image for {model_name} doesn't exist (id {ava_id})")
+                self.log_window.write_line(f"{current_time()}: Avatar image for {model_name} doesn't exist (id {ava_id})")
 
     @on(Input.Submitted)
     async def send_prompt(self, event: Input.Submitted) -> None:
