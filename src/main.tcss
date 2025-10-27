@@ -21,8 +21,8 @@ Button {
 }
 
 .avatar {
-    width: 5;
-    height: 3;
+    width: 10;
+    height: 5;
 }
 
 Container {
@@ -36,20 +36,21 @@ TabbedContent {
 .vert {
     margin: 1 0 1 0;
     padding: -1 1 0 1;
-    height: 90%;
+    height: 85%;
     min-height: 60%;
 }
 
 .hort {
-    padding: 0 0 0 0;
-    margin: 0 1 0 1;
     border: round #81A1C1;
+    max-height: 5;
+    dock: bottom;
 }
 
 .listitem {
     min-width: 40;
     width: 40%;
     border: round #434C5E;
+    background: $background;
 }
 
 .modellistitem {
@@ -62,6 +63,7 @@ TabbedContent {
 .modellist {
     height: 1fr;
     border: round #81A1C1;
+    background: $background;
 }
 
 .info {

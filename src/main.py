@@ -82,6 +82,9 @@ class AIChat(App):
 
     )
 
+    img_file_pth = None
+    username = "TheDocingEast"
+
     def on_ready(self) -> None:
         self.log_window.write_line(f"{current_time()}: Hello, World!")
 
@@ -122,6 +125,13 @@ class AIChat(App):
 
             with TabPane("Settings", id='setting_tab'):
                 with VerticalScroll(classes='vert'):
+                    yield Input(
+                        placeholder='Nickname',
+                        max_length=25,
+                        validators=[],
+                        classes='listitem',
+                        id='nickname',
+                    )
                     yield Select(
                         options=[],
                         prompt='???',
@@ -144,6 +154,7 @@ class AIChat(App):
                         variant='error',
                         id='reset_setting',
                     )
+
             with TabPane("Logs", id="log_tab"):
                 with VerticalScroll(classes='log'):
                     yield self.log_window
@@ -161,8 +172,9 @@ class AIChat(App):
                 if is_image(str(opened)):
                     self.log_window.write_line(f"{current_time()}: Open image in {str(opened)}")
                     chat_input = self.get_widget_by_id("chat_input")
-                    img = Image(image=str(opened), classes="avatar")
+                    img = Image(image=str(opened), classes="avatar", id='img')
                     await chat_input.mount(img, after="#choose_file")
+                    self.img_file_pth = str(opened)
                 else:
                     self.log_window.write_line(f"{current_time()}: File {str(opened)} not image")
 
@@ -174,25 +186,55 @@ class AIChat(App):
         # Проверяем, что событие от нужного RadioSet
         if event.radio_set.id == "modelset":
             ava_id = event.index  # индекс выбранной кнопки
-            model_name = event.pressed.label if event.pressed else "Unknown"
-            ai_avatar = f"img/avatar_{ava_id}.png"
+            self.model_name = str(event.pressed.label) if event.pressed else "Unknown"
+            ai_avatar = f"src/img/avatar_{ava_id}.png"
             if os.path.exists(ai_avatar):
                 self.log_window.write_line(
-                    f"{current_time()}: AI avatar changed to {model_name} (id {ava_id})"
+                    f"{current_time()}: AI avatar changed to {self.model_name} (id {ava_id})"
                 )
                 chat_win = self.get_widget_by_id('chat_log')
                 img = Image(image=ai_avatar, classes='avatar')
                 chat_win.mount(img)
             else:
-                self.log_window.write_line(f"{current_time()}: Avatar image for {model_name} doesn't exist (id {ava_id})")
+                self.log_window.write_line(f"{current_time()}: Avatar image for {self.model_name} doesn't exist (id {ava_id})")
 
     @on(Input.Submitted)
     async def send_prompt(self, event: Input.Submitted) -> None:
         chat = self.get_widget_by_id('chat_log')
-        user_name = "TheDocingEast"
-        if event.value is not None:
-            chat.write_line(f"{user_name}: {event.value}")
-
+        match event.input.id:
+            case 'prompt':
+                if event.value is not None:
+                    chat.write_line(f"{self.username}: {event.value}")
+                    message = event.value
+                    event.input.disabled = True
+                    if self.img_file_pth is not None:
+                        response = ollama.chat(
+                            model=self.model_name,
+                            messages=[
+                                {
+                                    "role" : "user", "content": message, "images": [self.img_file_pth]
+                                }
+                            ]
+                        )
+                    else:
+                        response = ollama.chat(
+                            model=self.model_name,
+                            messages=[
+                                {
+                                    "role" : "user", "content": message
+                                }
+                            ]
+                        )
+                    event.input.clear()
+                    event.input.disabled = False
+                    chat.write_line(f"{self.model_name}: {response["message"]["content"]}")
+                    if self.img_file_pth is not None:
+                        avatar = self.query_one("#img", expect_type=Image)
+                        await avatar.remove()
+            case 'nickname':
+                self.username = event.input.value
+                self.log_window.write_line(f'Username successfully changed to {event.input.value}')
+        
 
 
 def main_entry():
