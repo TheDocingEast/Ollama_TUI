@@ -1,8 +1,9 @@
 import PIL
 import os
 import ollama
+from rich.markdown import Markdown
 from datetime import datetime
-from textual import on, work
+from textual import on, work, events
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll, Container
 from textual.widgets import (
@@ -19,7 +20,8 @@ from textual.widgets import (
     OptionList,
     Select,
     SelectionList,
-    Log
+    Log,
+    RichLog
 
 )
 from textual_image.widget import Image
@@ -71,14 +73,18 @@ class AIChat(App):
         ("left", "previous_tab", "Previous tab"),
         ("right", "next_tab", "Next tab"),
     ]
-    log_window = Log(
-        auto_scroll=True,
+    chat = RichLog(
+        markup=True,
         highlight=True,
+        wrap=True,
+        auto_scroll=True,
+        id='chat_log'
+
     )
 
-    chat = Log(
+    log_window = Log(
         auto_scroll=True,
-        id='chat_log',
+        highlight=True
 
     )
 
@@ -204,15 +210,16 @@ class AIChat(App):
         match event.input.id:
             case 'prompt':
                 if event.value is not None:
-                    chat.write_line(f"{self.username}: {event.value}")
+                    chat.write(Markdown(f"***{self.username}***: {event.value}"))
                     message = event.value
+                    event.input.clear()
                     event.input.disabled = True
                     if self.img_file_pth is not None:
                         response = ollama.chat(
                             model=self.model_name,
                             messages=[
                                 {
-                                    "role" : "user", "content": message, "images": [self.img_file_pth]
+                                    "role": "user", "content": message, "images": [self.img_file_pth]
                                 }
                             ]
                         )
@@ -221,13 +228,12 @@ class AIChat(App):
                             model=self.model_name,
                             messages=[
                                 {
-                                    "role" : "user", "content": message
+                                    "role": "user", "content": message
                                 }
                             ]
                         )
-                    event.input.clear()
                     event.input.disabled = False
-                    chat.write_line(f"{self.model_name}: {response["message"]["content"]}")
+                    chat.write(Markdown(f"***{self.model_name}***: {response['message']['content']}"))
                     if self.img_file_pth is not None:
                         avatar = self.query_one("#img", expect_type=Image)
                         await avatar.remove()
