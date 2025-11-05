@@ -1,36 +1,32 @@
-#chat_input {
-    border: round #E5E9F0;
-    min-height: 5;
-}
-
-#chat_input Input {
-    width: 1fr;
-}
-
-#choose_file {
-    min-width: 14;
-}
-
-
-.log {
-    border: round #81A1C1;
-}
-
-Button {
-    margin: 0 1 0 1;
-}
-
-.avatar {
-    width: 10;
-    height: 5;
-}
-
 Container {
     align: center middle;
 }
 
 TabbedContent {
     padding: 1 1 1 1;
+}
+
+Button {
+    margin: 0 1 0 1;
+}
+
+.log {
+    border: round $secondary;
+}
+
+.avatar {
+    width: 5;
+    height: 2;
+}
+
+.message {
+    overflow: hidden hidden;
+    border: round $secondary;
+    padding: 0 1 1 1;
+    margin: 0 1 0 1;
+    min-height: 5;
+    height: auto;
+    max-height: 15;
 }
 
 .vert {
@@ -41,7 +37,7 @@ TabbedContent {
 }
 
 .hort {
-    border: round #81A1C1;
+    border: round $secondary;
     max-height: 5;
     dock: bottom;
 }
@@ -54,7 +50,7 @@ TabbedContent {
 }
 
 .modellistitem {
-    border: round #81A1C1;
+    border: round $secondary;
     padding: 0 1 0 1;
     min-width: 40;
     width: 40%;
@@ -62,7 +58,7 @@ TabbedContent {
 
 .modellist {
     height: 1fr;
-    border: round #81A1C1;
+    border: round $secondary;
     background: $background;
 }
 
@@ -72,9 +68,22 @@ TabbedContent {
 }
 
 .chat {
-    border: round #81A1C1;
+    overflow: hidden scroll;
+    border: round $secondary;
     padding: 0 1 0 1;
     min-height: 60%;
     height: 90%;
+}
 
+#chat_input {
+border: round #E5E9F0;
+min-height: 5;
+}
+
+#chat_input Input {
+width: 1fr;
+}
+
+#choose_file {
+min-width: 14;
 }
