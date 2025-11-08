@@ -79,30 +79,18 @@ class Message(Vertical):
     ):
         super().__init__()
         self.member = nickname
-        self.img_path = None
         self.message = message_content
         self.chat = chat
         self.classes = "message"
-
-        if os.path.exists(img_path):
-            self.img_path = img_path
-        else:
-            self.img_path = "src/img/placeholder.png"
+        self.shrink = True
 
     def compose(self):
-        with Horizontal():
-            Image(image=self.img_path, classes="avatar")
-            with Vertical():
-                yield Label(Markdown(f"***{self.member}***"), classes="name")
-                yield Vertical(
-                    Static(Markdown(self.message)),
-                    classes="message_box",
-                )
-                self.shrink = True
+        yield Label(Markdown(f"***{self.member}***"), classes="name")
+        yield Static(Markdown(self.message), classes="message_box", expand=True)
 
     def add_message(self):
         self.chat.mount(self)
-        self.add_class("--visible")
+        self.refresh()
 
 
 class AIChat(App):

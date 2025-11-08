@@ -16,17 +16,16 @@ Button {
     }
 
 .message {
-    layout: vertical;
     border: round $secondary;
     padding: 0 1;
     margin: 0;
-    min-height: 10;
+    height: auto;
     }
 
 .message_box {
-    layout: vertical;
     margin: 1 0 0 2;
     overflow: hidden auto;
+    min-height: 2;
     }
 
 
@@ -36,7 +35,7 @@ Button {
     padding: 0 1 0 1;
     min-height: 60%;
     height: 90%;
-    layout: vertical;
+
     }
 
 .name {
