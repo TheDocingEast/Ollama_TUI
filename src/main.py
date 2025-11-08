@@ -3,26 +3,27 @@ import os
 import ollama
 from rich.markdown import Markdown
 from datetime import datetime
-from textual import on, work, events
+from textual import on, work
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical, VerticalScroll, Container
+from textual.containers import (
+    Horizontal,
+    Vertical,
+    VerticalScroll,
+)
 from textual.widgets import (
     Button,
     Static,
     Footer,
     Header,
-    ProgressBar,
-    Label, RadioSet,
+    RadioSet,
     RadioButton,
     Input,
     TabbedContent,
     TabPane,
-    OptionList,
     Select,
     SelectionList,
-    Log,
-    RichLog
-
+    RichLog,
+    Label,
 )
 from textual_image.widget import Image
 from textual.theme import Theme
@@ -30,27 +31,25 @@ from textual_fspicker import FileOpen
 
 # import core
 
-
-
-
 nord_dark_theme = Theme(
     name="nord_dark",
-    primary="#88C0D0",     # Frost
-    secondary="#81A1C1",   # Frost
-    accent="#B48EAD",      # Aurora
+    primary="#88C0D0",  # Frost
+    secondary="#81A1C1",  # Frost
+    accent="#B48EAD",  # Aurora
     foreground="#D8DEE9",  # Snow
     background="#2E3440",  # Polar Night
-    success="#A3BE8C",     # Aurora (green)
-    warning="#EBCB8B",     # Aurora (yellow)
-    error="#BF616A",       # Aurora (red)
-    surface="#3B4252",     # Polar Night
-    panel="#434C5E",       # Polar Night (lighter)
+    success="#A3BE8C",  # Aurora (green)
+    warning="#EBCB8B",  # Aurora (yellow)
+    error="#BF616A",  # Aurora (red)
+    surface="#3B4252",  # Polar Night
+    panel="#434C5E",  # Polar Night (lighter)
     dark=True,
 )
 
 
 def current_time():
     return datetime.now().strftime("%H:%M:%S")
+
 
 def log_message(self, log_content: str, status: int):
     log = self.log_window
@@ -64,6 +63,7 @@ def log_message(self, log_content: str, status: int):
         case 0:
             log.write(f"{current_time()}: {log_msg}")
 
+
 def is_image(path: str) -> bool:
     try:
         with PIL.Image.open(path) as img:
@@ -72,52 +72,44 @@ def is_image(path: str) -> bool:
     except Exception:
         return False
 
-class Message(Static):
-    def __init__(self, chat: VerticalScroll, img_path: str, message_content: str):
+
+class Message(Vertical):
+    def __init__(
+        self, chat: VerticalScroll, img_path: str, message_content: str, nickname: str
+    ):
         super().__init__()
+        self.member = nickname
         self.img_path = None
         self.message = message_content
         self.chat = chat
+        self.classes = "message"
 
         if os.path.exists(img_path):
             self.img_path = img_path
         else:
             self.img_path = "src/img/placeholder.png"
 
-        self.msg_box_text = RichLog(markup=True, highlight=True, wrap=True)
     def compose(self):
-        yield Horizontal(
-            Image(image=self.img_path, classes="avatar"),
-            self.msg_box_text,
-            classes="message"
-        )
+        with Horizontal():
+            Image(image=self.img_path, classes="avatar")
+            with Vertical():
+                yield Label(Markdown(f"***{self.member}***"), classes="name")
+                yield Vertical(
+                    Static(Markdown(self.message)),
+                    classes="message_box",
+                )
+                self.shrink = True
 
     def add_message(self):
         self.chat.mount(self)
-        self.msg_box_text.write(self.message)
-
+        self.add_class("--visible")
 
 
 class AIChat(App):
     CSS_PATH = "main.tcss"
 
-    BINDINGS = [
-        ("left", "previous_tab", "Previous tab"),
-        ("right", "next_tab", "Next tab"),
-    ]
-    chat = VerticalScroll(
-        id='chat_window',
-        classes='chat'
-
-    )
-
-    log_window = RichLog(
-        auto_scroll=True,
-        highlight=True,
-        markup=True
-
-    )
-
+    chat = VerticalScroll(id="chat_window", classes="chat")
+    log_window = RichLog(auto_scroll=True, highlight=True, markup=True)
     model_name = None
     img_file_pth = None
     username = "TheDocingEast"
@@ -125,96 +117,80 @@ class AIChat(App):
     def on_ready(self) -> None:
         log_message(self, "Hello world!", 0)
 
-
     def on_mount(self) -> None:
         self.register_theme(nord_dark_theme)
         self.theme = "nord_dark"
 
-
-
     def compose(self) -> ComposeResult:
         yield Footer()
         yield Header()
-        with TabbedContent(id='tabs'):
-            with TabPane("Chat", id='chat_tab'):
+        with TabbedContent(id="tabs"):
+            with TabPane("Chat", id="chat_tab"):
                 with Horizontal():
                     with Vertical(classes="info"):
-                        with RadioSet(classes="modellist", id='modelset'):
-                            for i in ollama.list()['models']:
-                                yield RadioButton(
-                                    i['model'],
-                                    classes="modellistitem"
-                                )
+                        with RadioSet(classes="modellist", id="modelset"):
+                            for i in ollama.list()["models"]:
+                                yield RadioButton(i["model"], classes="modellistitem")
 
                     with Vertical():
                         yield self.chat
-                        with Horizontal(id='chat_input'):
-                            yield Input(
-                                placeholder="Write prompt",
-                                id='prompt'
-                            )
+                        with Horizontal(id="chat_input"):
+                            yield Input(placeholder="Write prompt", id="prompt")
                             yield Button(
                                 label="Choose file",
                                 variant="default",
-                                id='choose_file',
+                                id="choose_file",
                             )
 
-            with TabPane("Settings", id='setting_tab'):
-                with VerticalScroll(classes='vert'):
+            with TabPane("Settings", id="setting_tab"):
+                with VerticalScroll(classes="vert"):
                     yield Input(
-                        placeholder='Nickname',
+                        placeholder="Nickname",
                         max_length=25,
                         validators=[],
-                        classes='listitem',
-                        id='nickname',
+                        classes="listitem",
+                        id="nickname",
                     )
                     yield Select(
                         options=[],
-                        prompt='???',
+                        prompt="???",
                         type_to_search=True,
-                        classes='listitem'
+                        classes="listitem",
                     )
                     yield SelectionList(
-                        *[('First', 1), ('Second', 2)],
-                        name='???',
-                        classes='listitem',
+                        *[("First", 1), ("Second", 2)],
+                        name="???",
+                        classes="listitem",
                     )
-                with Horizontal(classes='hort'):
+                with Horizontal(classes="hort"):
                     yield Button(
-                        label="Save setting",
-                        variant='success',
-                        id='save_setting'
+                        label="Save setting", variant="success", id="save_setting"
                     )
                     yield Button(
                         label="Reset setting",
-                        variant='error',
-                        id='reset_setting',
+                        variant="error",
+                        id="reset_setting",
                     )
-
             with TabPane("Logs", id="log_tab"):
-                with VerticalScroll(classes='log'):
+                with VerticalScroll(classes="log"):
                     yield self.log_window
-                    yield Button(
-                        label='Clear logs',
-                        variant='default',
-                        id='reset_log'
-                    )
+                    yield Button(label="Clear logs", variant="default", id="reset_log")
 
     @work
     @on(Button.Pressed)
     async def button_action(self, event: Button.Pressed) -> None:
-        if event.button.id == 'choose_file':
+        if event.button.id == "choose_file":
             if opened := await self.push_screen_wait(FileOpen()):
                 if is_image(str(opened)):
                     log_message(self, f"Open image in {str(opened)}", 0)
                     chat_input = self.get_widget_by_id("chat_input")
-                    img = Image(image=str(opened), classes="avatar", id='img')
+                    img = Image(image=str(opened), classes="avatar", id="img")
                     await chat_input.mount(img, after="#choose_file")
                     self.img_file_pth = str(opened)
                 else:
                     log_message(self, f"File {str(opened)} not image", 1)
 
-        if event.button.id == 'reset_log':
+        if event.button.id == "reset_log":
             self.log_window.clear()
 
     @on(RadioSet.Changed)
@@ -225,21 +201,29 @@ class AIChat(App):
             self.model_name = str(event.pressed.label) if event.pressed else "Unknown"
             self.ai_avatar = f"src/img/avatar_{ava_id}.png"
             if os.path.exists(self.ai_avatar):
-                log_message(self, f"AI avatar changed to {self.model_name} (id {ava_id})", 0)
-                chat_win = self.get_widget_by_id('chat_log')
-                img = Image(image=self.ai_avatar, classes='avatar')
-                chat_win.mount(img)
+                log_message(
+                    self, f"AI avatar changed to {self.model_name} (id {ava_id})", 0
+                )
             else:
-                log_message(self, f"Avatar image for {self.model_name} doesn't exist (id {ava_id})", 1)
+                log_message(
+                    self,
+                    f"Avatar image for {self.model_name} doesn't exist (id {ava_id})",
+                    1,
+                )
 
     @on(Input.Submitted)
     async def send_prompt(self, event: Input.Submitted) -> None:
         match event.input.id:
-            case 'prompt':
+            case "prompt":
                 if event.value is not None:
                     try:
                         if self.model_name is not None:
-                            Message(self.chat, "", Markdown(f"***{self.username}***: {event.value}")).add_message()
+                            Message(
+                                self.chat,
+                                "",
+                                str(event.value),
+                                self.username,
+                            ).add_message()
                             message = event.value
                             event.input.clear()
                             event.input.disabled = True
@@ -248,35 +232,45 @@ class AIChat(App):
                                     model=self.model_name,
                                     messages=[
                                         {
-                                            "role": "user", "content": f"{self.username}:  {message}", "images": [self.img_file_pth]
+                                            "role": "user",
+                                            "content": f"{self.username}:  {message}",
+                                            "images": [self.img_file_pth],
                                         }
-                                    ]
+                                    ],
                                 )
                             else:
                                 response = ollama.chat(
                                     model=self.model_name,
                                     messages=[
                                         {
-                                            "role": "user", "content": f"{self.username}:  {message}"
+                                            "role": "user",
+                                            "content": f"{self.username}:  {message}",
                                         }
-                                    ]
+                                    ],
                                 )
                             event.input.disabled = False
 
-                            Message(self.chat, self.ai_avatar, Markdown(f"***{self.model_name}***: {response['message']['content']}")).add_message()
+                            Message(
+                                self.chat,
+                                self.ai_avatar,
+                                response["message"]["content"],
+                                self.model_name,
+                            ).add_message()
                             # chat.write(Markdown(f"***{self.model_name}***: {response['message']['content']}"))
                             if self.img_file_pth is not None:
                                 avatar = self.query_one("#img", expect_type=Image)
                                 await avatar.remove()
                         else:
-                            self.get_widget_by_id('tabs').active = "setting_tab"
-                            raise Exception("Не выбрана модель, пожайлуста выберите модель")
+                            raise Exception(
+                                "Не выбрана модель, пожайлуста выберите модель"
+                            )
                     except Exception as e:
-                        log_message(self, e, 2)
-            case 'nickname':
+                        log_message(self, str(e), 2)
+            case "nickname":
                 self.username = event.input.value
-                log_message(self, f'Username successfully changed to {event.input.value}', 0)
-        
+                log_message(
+                    self, f"Username successfully changed to {event.input.value}", 0
+                )
 
 
 def main_entry():
