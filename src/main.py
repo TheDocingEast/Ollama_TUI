@@ -2,14 +2,18 @@ import PIL
 import os
 import ollama
 from rich.markdown import Markdown
+from rich.logging import RichHandler
+import logging
 from datetime import datetime
-from textual import on, work
+from textual import on, widget, work
 from textual.app import App, ComposeResult
 from textual.containers import (
     Horizontal,
     Vertical,
     VerticalScroll,
 )
+from textual.logging import TextualHandler
+from textual.widget import Widget
 from textual.widgets import (
     Button,
     Static,
@@ -28,6 +32,7 @@ from textual.widgets import (
 from textual_image.widget import Image
 from textual.theme import Theme
 from textual_fspicker import FileOpen
+
 
 # import core
 
@@ -51,17 +56,22 @@ def current_time():
     return datetime.now().strftime("%H:%M:%S")
 
 
-def log_message(self, log_content: str, status: int):
-    log = self.log_window
-    log_msg = log_content
-    self.status_id = status
-    match self.status_id:
-        case 2:
-            log.write(f"{current_time()}: [red]{log_msg}[/red]")
-        case 1:
-            log.write(f"{current_time()}: [yellow]{log_msg}[/yellow]")
-        case 0:
-            log.write(f"{current_time()}: {log_msg}")
+class Logging(RichLog):
+    file = False
+    console: Widget
+
+    def print(self, content):
+        self.write(content)
+
+
+logger = logging.getLogger(__name__)
+richHandler = RichHandler(console=Logging(), rich_tracebacks=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    datefmt="%H:%M:%S",
+    handlers=[richHandler],
+)
 
 
 def is_image(path: str) -> bool:
@@ -103,7 +113,8 @@ class AIChat(App):
     username = "TheDocingEast"
 
     def on_ready(self) -> None:
-        log_message(self, "Hello world!", 0)
+        logger.info("Hello World!")
+        self.ollamaClient = ollama.AsyncClient()
 
     def on_mount(self) -> None:
         self.register_theme(nord_dark_theme)
@@ -161,7 +172,7 @@ class AIChat(App):
                     )
             with TabPane("Logs", id="log_tab"):
                 with VerticalScroll(classes="log"):
-                    yield self.log_window
+                    yield richHandler.console
                     yield Button(label="Clear logs", variant="default", id="reset_log")
 
     @work
@@ -170,13 +181,13 @@ class AIChat(App):
         if event.button.id == "choose_file":
             if opened := await self.push_screen_wait(FileOpen()):
                 if is_image(str(opened)):
-                    log_message(self, f"Open image in {str(opened)}", 0)
+                    logger.info(f"Open image in {str(opened)}")
                     chat_input = self.get_widget_by_id("chat_input")
                     img = Image(image=str(opened), classes="avatar", id="img")
                     await chat_input.mount(img, after="#choose_file")
                     self.img_file_pth = str(opened)
                 else:
-                    log_message(self, f"File {str(opened)} not image", 1)
+                    logger.warning(f"File {str(opened)} not image")
 
         if event.button.id == "reset_log":
             self.log_window.clear()
@@ -189,14 +200,10 @@ class AIChat(App):
             self.model_name = str(event.pressed.label) if event.pressed else "Unknown"
             self.ai_avatar = f"src/img/avatar_{ava_id}.png"
             if os.path.exists(self.ai_avatar):
-                log_message(
-                    self, f"AI avatar changed to {self.model_name} (id {ava_id})", 0
-                )
+                logger.info(f"AI avatar changed to {self.model_name} (id {ava_id})")
             else:
-                log_message(
-                    self,
-                    f"Avatar image for {self.model_name} doesn't exist (id {ava_id})",
-                    1,
+                logger.warning(
+                    f"Avatar image for {self.model_name} doesn't exist (id {ava_id})"
                 )
 
     @on(Input.Submitted)
@@ -216,23 +223,23 @@ class AIChat(App):
                             event.input.clear()
                             event.input.disabled = True
                             if self.img_file_pth is not None:
-                                response = ollama.chat(
+                                response = await self.ollamaClient.chat(
                                     model=self.model_name,
                                     messages=[
                                         {
                                             "role": "user",
-                                            "content": f"{self.username}:  {message}",
+                                            "content": message,
                                             "images": [self.img_file_pth],
                                         }
                                     ],
                                 )
                             else:
-                                response = ollama.chat(
+                                response = await self.ollamaClient.chat(
                                     model=self.model_name,
                                     messages=[
                                         {
                                             "role": "user",
-                                            "content": f"{self.username}:  {message}",
+                                            "content": message,
                                         }
                                     ],
                                 )
@@ -244,21 +251,18 @@ class AIChat(App):
                                 response["message"]["content"],
                                 self.model_name,
                             ).add_message()
-                            # chat.write(Markdown(f"***{self.model_name}***: {response['message']['content']}"))
                             if self.img_file_pth is not None:
                                 avatar = self.query_one("#img", expect_type=Image)
                                 await avatar.remove()
                         else:
                             raise Exception(
-                                "Не выбрана модель, пожайлуста выберите модель"
+                                "No model has been selected, please select model!"
                             )
                     except Exception as e:
-                        log_message(self, str(e), 2)
+                        logger.fatal(e)
             case "nickname":
                 self.username = event.input.value
-                log_message(
-                    self, f"Username successfully changed to {event.input.value}", 0
-                )
+                logger.info(f"Username successfully changed to {event.input.value}")
 
 
 def main_entry():
