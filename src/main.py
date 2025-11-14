@@ -1,18 +1,16 @@
 import PIL
 import os
 import ollama
-from rich.markdown import Markdown
 from rich.logging import RichHandler
 import logging
 from datetime import datetime
-from textual import on, widget, work
+from textual import message, on, work
 from textual.app import App, ComposeResult
 from textual.containers import (
     Horizontal,
     Vertical,
     VerticalScroll,
 )
-from textual.logging import TextualHandler
 from textual.widget import Widget
 from textual.widgets import (
     Button,
@@ -27,7 +25,7 @@ from textual.widgets import (
     Select,
     SelectionList,
     RichLog,
-    Label,
+    Markdown,
 )
 from textual_image.widget import Image
 from textual.theme import Theme
@@ -83,34 +81,32 @@ def is_image(path: str) -> bool:
         return False
 
 
-class Message(Vertical):
-    def __init__(
-        self, chat: VerticalScroll, img_path: str, message_content: str, nickname: str
-    ):
+class Chat(VerticalScroll):
+    def __init__(self):
         super().__init__()
-        self.member = nickname
-        self.message = message_content
-        self.chat = chat
-        self.classes = "message"
-        self.shrink = True
 
-    def compose(self):
-        yield Label(Markdown(f"***{self.member}***"), classes="name")
-        yield Static(Markdown(self.message), classes="message_box", expand=True)
+    def on_mount(self) -> None:
+        self.id = "chat_window"
+        self.classes = "chat"
+        self.border_title = "Chat"
 
-    def add_message(self):
-        self.chat.mount(self)
+    def add_message(self, msg_content: str, member_name: str):
+        message_bubble = Vertical(
+            Markdown(f"***{member_name}***", classes="name"),
+            Markdown(msg_content, classes="message_box", open_links=True),
+            classes="message",
+        )
+        self.mount(message_bubble)
         self.refresh()
 
 
 class AIChat(App):
     CSS_PATH = "main.tcss"
 
-    chat = VerticalScroll(id="chat_window", classes="chat")
     log_window = RichLog(auto_scroll=True, highlight=True, markup=True)
     model_name = None
-    img_file_pth = None
     username = "TheDocingEast"
+    chat = Chat()
 
     def on_ready(self) -> None:
         logger.info("Hello World!")
@@ -196,15 +192,8 @@ class AIChat(App):
     async def set_avatar(self, event: RadioSet.Changed) -> None:
         # Проверяем, что событие от нужного RadioSet
         if event.radio_set.id == "modelset":
-            ava_id = event.index  # индекс выбранной кнопки
             self.model_name = str(event.pressed.label) if event.pressed else "Unknown"
-            self.ai_avatar = f"src/img/avatar_{ava_id}.png"
-            if os.path.exists(self.ai_avatar):
-                logger.info(f"AI avatar changed to {self.model_name} (id {ava_id})")
-            else:
-                logger.warning(
-                    f"Avatar image for {self.model_name} doesn't exist (id {ava_id})"
-                )
+            logger.info(f"Selected model: {self.model_name} (by id{event.pressed.id}")
 
     @on(Input.Submitted)
     async def send_prompt(self, event: Input.Submitted) -> None:
@@ -213,12 +202,7 @@ class AIChat(App):
                 if event.value is not None:
                     try:
                         if self.model_name is not None:
-                            Message(
-                                self.chat,
-                                "",
-                                str(event.value),
-                                self.username,
-                            ).add_message()
+                            self.chat.add_message(event.value, self.username)
                             message = event.value
                             event.input.clear()
                             event.input.disabled = True
@@ -244,13 +228,9 @@ class AIChat(App):
                                     ],
                                 )
                             event.input.disabled = False
-
-                            Message(
-                                self.chat,
-                                self.ai_avatar,
-                                response["message"]["content"],
-                                self.model_name,
-                            ).add_message()
+                            self.chat.add_message(
+                                response["message"]["content"], self.model_name
+                            )
                             if self.img_file_pth is not None:
                                 avatar = self.query_one("#img", expect_type=Image)
                                 await avatar.remove()
