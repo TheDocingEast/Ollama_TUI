@@ -4,7 +4,17 @@ TabbedContent {
 
 Button {
     margin: 0 1 0 1;
-    }
+}
+
+Sparkline {
+    border: round $secondary;
+    height: 3;
+    align: center middle;
+}
+
+.hidden {
+    display: none;
+}
 
 .log {
     border: round $secondary;
@@ -33,9 +43,7 @@ Button {
     overflow: hidden scroll;
     border: round $secondary;
     padding: 0 1 0 1;
-    min-height: 60%;
-    height: 90%;
-
+    height: 85%;
     }
 
 .name {
@@ -81,9 +89,9 @@ Button {
     }
 
 #chat_input {
-border: round #E5E9F0;
-min-height: 5;
-    }
+    border: round $foreground;
+    min-height: 5;
+}
 
 #chat_input Input {
 width: 1fr;
